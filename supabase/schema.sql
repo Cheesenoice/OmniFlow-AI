@@ -125,6 +125,132 @@ CREATE INDEX IF NOT EXISTS idx_vector_memory_embedding
 CREATE INDEX IF NOT EXISTS idx_vector_memory_user_id ON public.vector_memory(user_id);
 
 -- ============================================================
+-- TABLE: crawl_sources
+-- RSS feed sources for news crawling.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.crawl_sources (
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name            TEXT NOT NULL,
+  feed_url        TEXT NOT NULL UNIQUE,
+  max_posts       INT NOT NULL DEFAULT 10,
+  enabled         BOOLEAN NOT NULL DEFAULT true,
+  last_crawled_at TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TRIGGER set_updated_at
+  BEFORE UPDATE ON public.crawl_sources
+  FOR EACH ROW
+  EXECUTE FUNCTION update_modified_column();
+
+-- ============================================================
+-- TABLE: crawled_articles
+-- Articles fetched from RSS feeds.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.crawled_articles (
+  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  source_id     UUID REFERENCES public.crawl_sources(id) ON DELETE SET NULL,
+  title         TEXT NOT NULL,
+  body          TEXT NOT NULL DEFAULT '',
+  url           TEXT NOT NULL UNIQUE,
+  author        TEXT,
+  published_at  TIMESTAMPTZ,
+  metadata      JSONB DEFAULT '{}',
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_crawled_articles_published_at ON public.crawled_articles(published_at DESC);
+CREATE INDEX IF NOT EXISTS idx_crawled_articles_source_id ON public.crawled_articles(source_id);
+
+-- Auto-publish columns for crawl_sources
+DO $$ BEGIN
+  ALTER TABLE public.crawl_sources ADD COLUMN auto_publish BOOLEAN DEFAULT false;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE public.crawl_sources ADD COLUMN auto_publish_platform TEXT DEFAULT 'facebook';
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE public.crawl_sources ADD COLUMN auto_publish_tone TEXT DEFAULT 'professional';
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+-- ============================================================
+-- TABLE: crawl_schedules
+-- Crawl automation schedule config.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.crawl_schedules (
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  schedule_mode   TEXT NOT NULL DEFAULT 'interval',
+  interval_minutes INT NOT NULL DEFAULT 10,
+  daily_time      TIME DEFAULT '08:00:00',
+  weekly_day      INT DEFAULT 1,
+  weekly_time     TIME DEFAULT '08:00:00',
+  monthly_day     INT DEFAULT 1,
+  monthly_time    TIME DEFAULT '08:00:00',
+  enabled         BOOLEAN NOT NULL DEFAULT true,
+  last_triggered_at TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ============================================================
+-- TABLE: published_articles
+-- Tracks which crawled articles have been auto-published.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.published_articles (
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  article_id      UUID REFERENCES public.crawled_articles(id) ON DELETE SET NULL,
+  platform        TEXT NOT NULL,
+  platform_post_id TEXT,
+  published_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_published_articles_article_id ON public.published_articles(article_id);
+
+-- ============================================================
+-- TABLE: email_settings
+-- Email notification config (single row, upserted).
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.email_settings (
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  smtp_host       TEXT NOT NULL DEFAULT 'smtp.gmail.com',
+  smtp_port       INT NOT NULL DEFAULT 587,
+  smtp_user       TEXT NOT NULL DEFAULT '',
+  smtp_pass       TEXT NOT NULL DEFAULT '',
+  recipient_email TEXT NOT NULL DEFAULT '',
+  notify_on_publish BOOLEAN NOT NULL DEFAULT true,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ============================================================
+-- TABLE: social_credentials
+-- Server-side social media tokens for auto-publish.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.social_credentials (
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  platform        TEXT NOT NULL UNIQUE,
+  access_token    TEXT NOT NULL DEFAULT '',
+  page_id         TEXT NOT NULL DEFAULT '',
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ============================================================
+-- TABLE: ai_config
+-- AI provider configuration (single row).
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.ai_config (
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  provider        TEXT NOT NULL DEFAULT 'gemini',
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ============================================================
 -- TABLE: connections
 -- OAuth2 tokens for social media platforms.
 -- ============================================================

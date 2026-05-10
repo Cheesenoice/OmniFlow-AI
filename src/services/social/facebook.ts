@@ -20,6 +20,7 @@ export interface FacebookPublishParams {
   pageAccessToken: string;
   pageId: string;
   message: string;
+  imageUrl?: string;
 }
 
 export interface FacebookResult {
@@ -36,20 +37,33 @@ export async function publishToFacebookPage({
   pageAccessToken,
   pageId,
   message,
+  imageUrl,
 }: FacebookPublishParams): Promise<FacebookResult> {
+  // If image provided, post as photo with caption
+  const endpoint = imageUrl
+    ? `${GRAPH_API}/${pageId}/photos`
+    : `${GRAPH_API}/${pageId}/feed`;
+
+  const body: Record<string, string> = { access_token: pageAccessToken };
+  if (imageUrl) {
+    body.url = imageUrl;
+    body.caption = message;
+  } else {
+    body.message = message;
+  }
+
+  console.log(`[OmniFlow FB] Publishing to page ${pageId}, ${imageUrl ? 'photo' : 'text'} post, message length=${message.length}...`);
   try {
-    const res = await fetch(`${GRAPH_API}/${pageId}/feed`, {
+    const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message,
-        access_token: pageAccessToken,
-      }),
+      body: JSON.stringify(body),
     });
 
     const data = await res.json();
 
     if (!res.ok || data.error) {
+      console.log(`[OmniFlow FB] FAILED: status=${res.status}, error=`, data.error);
       return {
         success: false,
         platform: 'facebook',
@@ -57,12 +71,14 @@ export async function publishToFacebookPage({
       };
     }
 
+    console.log(`[OmniFlow FB] SUCCESS: postId=${data.id}`);
     return {
       success: true,
       platform: 'facebook',
       platformPostId: data.id,
     };
   } catch (err) {
+    console.log(`[OmniFlow FB] NETWORK ERROR:`, err);
     return {
       success: false,
       platform: 'facebook',
@@ -80,7 +96,7 @@ export async function testFacebookConnection(
 ): Promise<{ ok: boolean; pageName?: string; error?: string }> {
   try {
     const res = await fetch(
-      `${GRAPH_API}/${pageId}?fields=name&access_token=${pageAccessToken}`,
+      `${GRAPH_API}/${pageId}?fields=name&access_token=${encodeURIComponent(pageAccessToken)}`,
     );
     const data = await res.json();
 

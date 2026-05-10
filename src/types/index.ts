@@ -103,3 +103,34 @@ export interface GeneratedContent {
   content_type: ContentType;
   metadata: Record<string, unknown>;
 }
+
+// ---- News Crawler -------------------------------------------
+export interface CrawlSource {
+  id: string;
+  name: string;
+  feed_url: string;
+  max_posts: number;
+  enabled: boolean;
+  last_crawled_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CrawledArticle {
+  id: string;
+  source_id: string;
+  title: string;
+  body: string;
+  url: string;
+  author: string | null;
+  published_at: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface CrawlResult {
+  sources_crawled: number;
+  articles_new: number;
+  articles_skipped: number;
+  errors: string[];
+}

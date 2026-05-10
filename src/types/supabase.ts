@@ -110,6 +110,189 @@ export interface Database {
           created_at?: string;
         };
       };
+      crawl_sources: {
+        Row: {
+          id: string;
+          name: string;
+          feed_url: string;
+          max_posts: number;
+          enabled: boolean;
+          last_crawled_at: string | null;
+          auto_publish: boolean;
+          auto_publish_platform: string;
+          auto_publish_tone: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          feed_url: string;
+          max_posts?: number;
+          enabled?: boolean;
+          last_crawled_at?: string | null;
+          auto_publish?: boolean;
+          auto_publish_platform?: string;
+          auto_publish_tone?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          feed_url?: string;
+          max_posts?: number;
+          enabled?: boolean;
+          last_crawled_at?: string | null;
+          auto_publish?: boolean;
+          auto_publish_platform?: string;
+          auto_publish_tone?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      crawled_articles: {
+        Row: {
+          id: string;
+          source_id: string | null;
+          title: string;
+          body: string;
+          url: string;
+          author: string | null;
+          published_at: string | null;
+          metadata: Record<string, unknown>;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          source_id?: string | null;
+          title: string;
+          body?: string;
+          url: string;
+          author?: string | null;
+          published_at?: string | null;
+          metadata?: Record<string, unknown>;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          source_id?: string | null;
+          title?: string;
+          body?: string;
+          url?: string;
+          author?: string | null;
+          published_at?: string | null;
+          metadata?: Record<string, unknown>;
+          created_at?: string;
+        };
+      };
+      crawl_schedules: {
+        Row: {
+          id: string;
+          schedule_mode: string;
+          interval_minutes: number;
+          daily_time: string | null;
+          weekly_day: number | null;
+          weekly_time: string | null;
+          monthly_day: number | null;
+          monthly_time: string | null;
+          enabled: boolean;
+          last_triggered_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          schedule_mode?: string;
+          interval_minutes?: number;
+          daily_time?: string | null;
+          weekly_day?: number | null;
+          weekly_time?: string | null;
+          monthly_day?: number | null;
+          monthly_time?: string | null;
+          enabled?: boolean;
+          last_triggered_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          schedule_mode?: string;
+          interval_minutes?: number;
+          daily_time?: string | null;
+          weekly_day?: number | null;
+          weekly_time?: string | null;
+          monthly_day?: number | null;
+          monthly_time?: string | null;
+          enabled?: boolean;
+          last_triggered_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      published_articles: {
+        Row: {
+          id: string;
+          article_id: string | null;
+          platform: string;
+          platform_post_id: string | null;
+          published_at: string;
+        };
+        Insert: {
+          id?: string;
+          article_id?: string | null;
+          platform: string;
+          platform_post_id?: string | null;
+          published_at?: string;
+        };
+        Update: {
+          id?: string;
+          article_id?: string | null;
+          platform?: string;
+          platform_post_id?: string | null;
+          published_at?: string;
+        };
+      };
+      ai_config: {
+        Row: { id: string; provider: string; created_at: string; updated_at: string };
+        Insert: { id?: string; provider?: string; created_at?: string; updated_at?: string };
+        Update: { id?: string; provider?: string; created_at?: string; updated_at?: string };
+      };
+      email_settings: {
+        Row: {
+          id: string;
+          smtp_host: string;
+          smtp_port: number;
+          smtp_user: string;
+          smtp_pass: string;
+          recipient_email: string;
+          notify_on_publish: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          smtp_host?: string;
+          smtp_port?: number;
+          smtp_user?: string;
+          smtp_pass?: string;
+          recipient_email?: string;
+          notify_on_publish?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          smtp_host?: string;
+          smtp_port?: number;
+          smtp_user?: string;
+          smtp_pass?: string;
+          recipient_email?: string;
+          notify_on_publish?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
       connections: {
         Row: {
           id: string;

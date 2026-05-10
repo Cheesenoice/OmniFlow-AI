@@ -6,6 +6,7 @@ import {
   Settings,
   Archive,
   Brain,
+  Newspaper,
 } from 'lucide-react';
 
 import {
@@ -24,6 +25,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 const navItems = [
   { title: 'Create', url: '/dashboard', icon: LayoutDashboard },
+  { title: 'News', url: '/news', icon: Newspaper },
   { title: 'Archive', url: '/archive', icon: Archive },
   { title: 'Settings', url: '/settings', icon: Settings },
 ];

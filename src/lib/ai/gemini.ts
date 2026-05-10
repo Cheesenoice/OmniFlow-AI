@@ -3,7 +3,7 @@
  * Uses Gemini API for both text generation and embeddings.
  */
 
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta";
 
 interface GeminiGenerateParams {
   prompt: string;
@@ -20,39 +20,39 @@ interface GeminiEmbedParams {
 
 /**
  * Generate text with Gemini.
- * Model default: gemini-2.5-flash (fast + capable).
+ * Model default: gemini-2.5-flash-lite (fast + capable).
  */
 export async function geminiGenerate({
   prompt,
   systemInstruction,
-  model = 'gemini-2.5-flash',
+  model = "gemini-2.5-flash-lite",
   temperature = 0.7,
   maxOutputTokens = 8192,
 }: GeminiGenerateParams): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error('GEMINI_API_KEY is not set');
+  if (!apiKey) throw new Error("GEMINI_API_KEY is not set");
 
   const contents: Array<Record<string, unknown>> = [];
   if (systemInstruction) {
     contents.push({
-      role: 'user',
+      role: "user",
       parts: [{ text: systemInstruction }],
     });
     contents.push({
-      role: 'model',
-      parts: [{ text: 'Understood.' }],
+      role: "model",
+      parts: [{ text: "Understood." }],
     });
   }
   contents.push({
-    role: 'user',
+    role: "user",
     parts: [{ text: prompt }],
   });
 
   const res = await fetch(
     `${GEMINI_API_BASE}/models/${model}:generateContent?key=${apiKey}`,
     {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents,
         generationConfig: { temperature, maxOutputTokens },
@@ -66,7 +66,7 @@ export async function geminiGenerate({
   }
 
   const data = await res.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 }
 
 /**
@@ -75,10 +75,10 @@ export async function geminiGenerate({
  */
 export async function geminiEmbed({
   texts,
-  model = 'text-embedding-004',
+  model = "text-embedding-004",
 }: GeminiEmbedParams): Promise<number[][]> {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error('GEMINI_API_KEY is not set');
+  if (!apiKey) throw new Error("GEMINI_API_KEY is not set");
 
   const embeddings: number[][] = [];
 
@@ -86,8 +86,8 @@ export async function geminiEmbed({
     const res = await fetch(
       `${GEMINI_API_BASE}/models/${model}:embedContent?key=${apiKey}`,
       {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: `models/${model}`,
           content: { parts: [{ text }] },

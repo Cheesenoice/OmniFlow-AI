@@ -1,12 +1,19 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { InputPanel } from '@/components/dashboard/input-panel';
 import { OutputPanel } from '@/components/dashboard/output-panel';
 import { ContentPreviewDialog } from '@/components/dashboard/content-preview-dialog';
 import { Sparkles } from 'lucide-react';
 import type { PlatformType, ContentType, GeneratedContent } from '@/types';
+
+interface CrawledArticleSource {
+  title: string;
+  body: string;
+  url: string;
+  source: string;
+}
 
 interface PreviewState {
   open: boolean;
@@ -24,7 +31,20 @@ export default function DashboardPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const [ragUsed, setRagUsed] = useState(false);
+  const [crawledArticle, setCrawledArticle] = useState<CrawledArticleSource | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Check for crawled article from News page
+  useEffect(() => {
+    const raw = sessionStorage.getItem('omni_crawled_article');
+    if (raw) {
+      try {
+        const article = JSON.parse(raw);
+        setCrawledArticle(article);
+        sessionStorage.removeItem('omni_crawled_article');
+      } catch { /* ignore */ }
+    }
+  }, []);
 
   const [preview, setPreview] = useState<PreviewState>({
     open: false,
@@ -176,7 +196,7 @@ export default function DashboardPage() {
       )}
 
       {/* Input Panel */}
-      <InputPanel onGenerate={handleGenerate} isGenerating={isGenerating} />
+      <InputPanel onGenerate={handleGenerate} isGenerating={isGenerating} crawledArticle={crawledArticle} />
 
       {/* Publish feedback */}
       {publishMsg && (

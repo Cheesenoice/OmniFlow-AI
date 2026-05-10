@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, type DragEvent } from 'react';
+import { useState, useRef, useEffect, type DragEvent } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ import {
   FileText,
   X,
   Loader2,
+  Newspaper,
 } from 'lucide-react';
 import type { PlatformType, ContentType } from '@/types';
 
@@ -62,9 +63,10 @@ interface InputPanelProps {
   featured?: boolean;
   onGenerate?: (idea: string, platforms: PlatformType[], tone: string, audience: string, docxFile?: File | null) => void;
   isGenerating?: boolean;
+  crawledArticle?: { title: string; body: string; url: string; source: string } | null;
 }
 
-export function InputPanel({ onGenerate, isGenerating = false }: InputPanelProps) {
+export function InputPanel({ onGenerate, isGenerating = false, crawledArticle }: InputPanelProps) {
   const [idea, setIdea] = useState('');
   const [tone, setTone] = useState('professional');
   const [audience, setAudience] = useState('general');
@@ -74,6 +76,16 @@ export function InputPanel({ onGenerate, isGenerating = false }: InputPanelProps
   const [docxFile, setDocxFile] = useState<File | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Pre-fill idea from crawled article
+  const [crawledSource, setCrawledSource] = useState<string | null>(null);
+  useEffect(() => {
+    if (crawledArticle) {
+      const text = `[Source: ${crawledArticle.source}] ${crawledArticle.title}\n\n${crawledArticle.body.slice(0, 1500)}`;
+      setIdea(text);
+      setCrawledSource(crawledArticle.source);
+    }
+  }, [crawledArticle]);
 
   const charCount = idea.length;
   const isOverLimit = charCount > MAX_CHARS;
@@ -135,6 +147,12 @@ export function InputPanel({ onGenerate, isGenerating = false }: InputPanelProps
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
+            {crawledSource && (
+              <div className="flex items-center gap-2 text-xs text-blue-600 bg-blue-50 dark:bg-blue-950/20 rounded-md px-3 py-2">
+                <Newspaper className="size-3.5" />
+                <span>Using crawled article from <strong>{crawledSource}</strong> as source. Edit the text below or generate as-is.</span>
+              </div>
+            )}
             <Textarea
               placeholder="e.g. Write about how AI agents are transforming customer support in 2026. Cover: 1) current state, 2) key benefits, 3) real examples, 4) how to get started..."
               className="min-h-40 resize-y"
