@@ -35,6 +35,7 @@ REQUIREMENTS:
 - Add line breaks for readability
 - End with an engagement question
 - Write in Vietnamese or English based on context
+- PLAIN TEXT only. NO markdown, NO asterisks for bold/italic, NO formatting symbols
 
 DO NOT use clickbait. Be authentic and valuable.`;
 
@@ -146,6 +147,54 @@ export const PLATFORM_PROMPTS: Record<string, PlatformPrompt> = {
     temperature: 0.8,
   },
 };
+
+/**
+ * Build batch prompt — generates content for ALL platforms in ONE API call.
+ */
+export function buildBatchPrompt(params: {
+  idea: string;
+  platforms: string[];
+  tone: string;
+  audience: string;
+  contextFromRAG?: string;
+}) {
+  const { idea, platforms, tone, audience, contextFromRAG } = params;
+
+  // Build combined system instruction for all selected platforms
+  const platformInstructions = platforms
+    .map((p) => {
+      const key = platformToPromptKey(p);
+      const cfg = PLATFORM_PROMPTS[key];
+      if (!cfg) return null;
+      return `[${p}]\n${cfg.systemPrompt}`;
+    })
+    .filter(Boolean)
+    .join("\n\n===\n\n");
+
+  const systemInstruction = `You are a multi-platform content generation engine. Generate content for EACH requested platform below.
+
+${platformInstructions}
+
+IMPORTANT RULES:
+- Return ONLY a valid JSON array, no markdown, no code fences
+- Generate EXACTLY ${platforms.length} items, one per platform
+- Use the same order as listed
+- Each object: {"platform": "${platforms[0]}", "title": "...", "body": "..."}
+- "platform" field uses the exact key from the list
+- Write each piece as if it's the only one — full quality, no shortcuts`;
+
+  let fullPrompt = `TONE: ${tone}`;
+  fullPrompt += `\nTARGET AUDIENCE: ${audience}`;
+
+  if (contextFromRAG) {
+    fullPrompt += `\n\n${contextFromRAG}`;
+    fullPrompt += `\n\nUse the above past content as reference for brand voice, facts, and style consistency. Do NOT copy verbatim — adapt the style and reuse factual information where relevant.`;
+  }
+
+  fullPrompt += `\n\n---\nTOPIC / IDEA:\n${idea}\n---\n\nGenerate content for all ${platforms.length} platforms now:`;
+
+  return { prompt: fullPrompt, systemInstruction };
+}
 
 /**
  * Build the full prompt with context, tone, and audience injected.

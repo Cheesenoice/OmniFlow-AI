@@ -7,6 +7,8 @@ import {
   Archive,
   Brain,
   Newspaper,
+  Database,
+  TrendingUp,
 } from 'lucide-react';
 
 import {
@@ -25,8 +27,10 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 const navItems = [
   { title: 'Create', url: '/dashboard', icon: LayoutDashboard },
+  { title: 'Storage', url: '/storage', icon: Database },
   { title: 'News', url: '/news', icon: Newspaper },
   { title: 'Archive', url: '/archive', icon: Archive },
+  { title: 'Insights', url: '/insights', icon: TrendingUp },
   { title: 'Settings', url: '/settings', icon: Settings },
 ];
 

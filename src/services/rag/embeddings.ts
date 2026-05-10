@@ -4,8 +4,8 @@
  */
 import { geminiEmbed } from '@/lib/ai/gemini';
 
-const EMBEDDING_MODEL = 'text-embedding-004';
-const EMBEDDING_DIM = 768; // Gemini text-embedding-004 dimension
+const EMBEDDING_MODEL = 'text-embedding-005';
+const EMBEDDING_DIM = 768; // Gemini text-embedding-005 dimension
 
 export interface EmbeddedChunk {
   text: string;

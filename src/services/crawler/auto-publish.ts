@@ -111,6 +111,24 @@ export async function autoPublishNewArticles(
           platform: 'facebook',
           platform_post_id: fbResult.platformPostId,
         });
+        // Also save to contents for insights tracking
+        try {
+          await db.from('contents').insert({
+            user_id: '00000000-0000-0000-0000-000000000000',
+            title: article.title,
+            body: socialContent,
+            content_type: 'social_fb',
+            status: 'published',
+            platform_post_id: fbResult.platformPostId,
+            metadata: {
+              published_at: new Date().toISOString(),
+              permalink_url: `https://www.facebook.com/${fbResult.platformPostId}`,
+              platform: 'facebook',
+            },
+          });
+        } catch (dbErr) {
+          console.error(`${TAG} Failed to save to contents:`, dbErr);
+        }
         published++;
         console.log(`${TAG}   SUCCESS: postId=${fbResult.platformPostId}`);
         results.push({ articleId: article.id, title: article.title, platform: 'facebook', success: true, platformPostId: fbResult.platformPostId });

@@ -20,12 +20,12 @@ interface GeminiEmbedParams {
 
 /**
  * Generate text with Gemini.
- * Model default: gemini-2.5-flash-lite (fast + capable).
+ * Model default: gemini-flash-lite-latest (fast + capable).
  */
 export async function geminiGenerate({
   prompt,
   systemInstruction,
-  model = "gemini-2.5-flash-lite",
+  model = "gemini-flash-lite-latest",
   temperature = 0.7,
   maxOutputTokens = 8192,
 }: GeminiGenerateParams): Promise<string> {
@@ -75,7 +75,7 @@ export async function geminiGenerate({
  */
 export async function geminiEmbed({
   texts,
-  model = "text-embedding-004",
+  model = "text-embedding-005",
 }: GeminiEmbedParams): Promise<number[][]> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY is not set");

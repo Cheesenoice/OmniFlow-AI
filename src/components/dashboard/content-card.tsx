@@ -1,8 +1,10 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import {
   FileText,
   MessageCircle,
@@ -15,6 +17,9 @@ import {
   RefreshCw,
   Send,
   Calendar,
+  Wand2,
+  Loader2,
+  X,
 } from 'lucide-react';
 import type { ContentType } from '@/types';
 
@@ -29,6 +34,7 @@ interface ContentCardProps {
   onView?: () => void;
   onRemix?: () => void;
   onPublish?: () => void;
+  onRefined?: (newBody: string) => void;
 }
 
 const typeConfig: Record<string, { icon: React.ReactNode; label: string; color: string }> = {
@@ -52,7 +58,15 @@ export function ContentCard({
   onView,
   onRemix,
   onPublish,
+  onRefined,
 }: ContentCardProps) {
+  const [currentBody, setCurrentBody] = useState(body);
+  useEffect(() => { setCurrentBody(body); }, [body]);
+  const [showRefine, setShowRefine] = useState(false);
+  const [refinePrompt, setRefinePrompt] = useState('');
+  const [refineLoading, setRefineLoading] = useState(false);
+  const [refineError, setRefineError] = useState<string | null>(null);
+
   const config = typeConfig[contentType] ?? {
     icon: <FileText className="size-3.5" />,
     label: platform,
@@ -60,7 +74,37 @@ export function ContentCard({
   };
 
   const preview =
-    body.length > 180 ? body.slice(0, 180).replace(/\n/g, ' ') + '...' : body.replace(/\n/g, ' ');
+    currentBody.length > 180 ? currentBody.slice(0, 180).replace(/\n/g, ' ') + '...' : currentBody.replace(/\n/g, ' ');
+
+  const handleRefine = async () => {
+    if (!refinePrompt.trim()) return;
+    setRefineLoading(true);
+    setRefineError(null);
+    try {
+      const res = await fetch('/api/generate/refine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          originalText: currentBody,
+          instruction: refinePrompt,
+          platform,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.refined) {
+        setCurrentBody(data.refined);
+        onRefined?.(data.refined);
+        setShowRefine(false);
+        setRefinePrompt('');
+      } else {
+        setRefineError(data.error || 'Refine failed');
+      }
+    } catch {
+      setRefineError('Network error');
+    } finally {
+      setRefineLoading(false);
+    }
+  };
 
   return (
     <Card className="group hover:shadow-md transition-all hover:border-blue-200 dark:hover:border-blue-800">
@@ -95,13 +139,13 @@ export function ContentCard({
             <Eye className="size-3.5" />
             View
           </Button>
-          <Button variant="ghost" size="sm" className="h-8 gap-1.5" onClick={() => navigator.clipboard.writeText(body)}>
+          <Button variant="ghost" size="sm" className="h-8 gap-1.5" onClick={() => navigator.clipboard.writeText(currentBody)}>
             <Copy className="size-3.5" />
             Copy
           </Button>
-          <Button variant="ghost" size="sm" className="h-8 gap-1.5" onClick={onRemix}>
-            <RefreshCw className="size-3.5" />
-            Remix
+          <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-purple-600" onClick={() => setShowRefine(prev => !prev)}>
+            <Wand2 className="size-3.5" />
+            Refine
           </Button>
           {status === 'draft' && (
             <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-green-600" onClick={onPublish}>
@@ -110,6 +154,41 @@ export function ContentCard({
             </Button>
           )}
         </div>
+
+        {/* Inline Refine Panel */}
+        {showRefine && (
+          <div className="mt-3 space-y-2 border-t pt-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground">AI Refine</span>
+              <Button variant="ghost" size="icon" className="size-6" onClick={() => { setShowRefine(false); setRefineError(null); }}>
+                <X className="size-3" />
+              </Button>
+            </div>
+            <Textarea
+              placeholder="e.g. make it shorter, add emojis, translate to Vietnamese..."
+              className="h-16 text-xs resize-none"
+              value={refinePrompt}
+              onChange={(e) => setRefinePrompt(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleRefine()}
+            />
+            {refineError && (
+              <p className="text-xs text-red-500">{refineError}</p>
+            )}
+            <Button
+              size="sm"
+              className="h-7 text-xs gap-1"
+              onClick={handleRefine}
+              disabled={refineLoading || !refinePrompt.trim()}
+            >
+              {refineLoading ? (
+                <Loader2 className="size-3 animate-spin" />
+              ) : (
+                <Wand2 className="size-3" />
+              )}
+              {refineLoading ? 'Refining...' : 'Refine'}
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

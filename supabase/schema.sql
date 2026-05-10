@@ -57,7 +57,7 @@ CREATE TYPE content_status AS ENUM ('draft', 'published', 'failed', 'archived');
 
 CREATE TABLE IF NOT EXISTS public.contents (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id         UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id         UUID DEFAULT '00000000-0000-0000-0000-000000000000', -- server-side publish bypasses auth
   title           TEXT,
   body            TEXT NOT NULL,
   content_type    content_type NOT NULL,
@@ -249,6 +249,26 @@ CREATE TABLE IF NOT EXISTS public.ai_config (
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- ============================================================
+-- TABLE: stored_documents
+-- AI-processed uploaded documents (docx, pdf, images).
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.stored_documents (
+  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  session_id    UUID,                 -- groups files uploaded together
+  file_name     TEXT NOT NULL,
+  file_type     TEXT NOT NULL,
+  file_size     INT,
+  original_text TEXT,
+  ai_summary    TEXT,
+  ai_json       JSONB DEFAULT '{}',
+  embedding     vector(768),
+  metadata      JSONB DEFAULT '{}',
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_stored_documents_session_id ON public.stored_documents(session_id);
 
 -- ============================================================
 -- TABLE: connections

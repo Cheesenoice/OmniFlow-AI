@@ -12,9 +12,10 @@ interface OutputPanelProps {
   isGenerating: boolean;
   onView?: (item: GeneratedContent) => void;
   onPublish?: (item: GeneratedContent) => void;
+  onRefine?: (item: GeneratedContent) => void;
 }
 
-export function OutputPanel({ results, isGenerating, onView, onPublish }: OutputPanelProps) {
+export function OutputPanel({ results, isGenerating, onView, onPublish, onRefine }: OutputPanelProps) {
   if (isGenerating) {
     return (
       <Card className="border-dashed">
@@ -91,6 +92,7 @@ export function OutputPanel({ results, isGenerating, onView, onPublish }: Output
                 status="draft"
                 onView={() => onView?.(item)}
                 onPublish={() => onPublish?.(item)}
+                onRefined={(newBody) => onRefine?.({ ...item, body: newBody })}
               />
             ))}
           </div>
@@ -110,6 +112,7 @@ export function OutputPanel({ results, isGenerating, onView, onPublish }: Output
                 status="draft"
                 onView={() => onView?.(item)}
                 onPublish={() => onPublish?.(item)}
+                onRefined={(newBody: string) => onRefine?.({ ...item, body: newBody })}
               />
             ))}
           </div>
@@ -129,6 +132,7 @@ export function OutputPanel({ results, isGenerating, onView, onPublish }: Output
                 status="draft"
                 onView={() => onView?.(item)}
                 onPublish={() => onPublish?.(item)}
+                onRefined={(newBody: string) => onRefine?.({ ...item, body: newBody })}
               />
             ))}
           </div>
@@ -148,6 +152,7 @@ export function OutputPanel({ results, isGenerating, onView, onPublish }: Output
                 status="draft"
                 onView={() => onView?.(item)}
                 onPublish={() => onPublish?.(item)}
+                onRefined={(newBody: string) => onRefine?.({ ...item, body: newBody })}
               />
             ))}
           </div>

@@ -15,6 +15,14 @@ interface CrawledArticleSource {
   source: string;
 }
 
+interface StoredDocumentSource {
+  title: string;
+  body: string;
+  source: string;
+  type: string;
+  image_urls?: string[];
+}
+
 interface PreviewState {
   open: boolean;
   title: string;
@@ -32,7 +40,9 @@ export default function DashboardPage() {
   const [genError, setGenError] = useState<string | null>(null);
   const [ragUsed, setRagUsed] = useState(false);
   const [crawledArticle, setCrawledArticle] = useState<CrawledArticleSource | null>(null);
+  const [storedDocument, setStoredDocument] = useState<StoredDocumentSource | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const imageUrlsRef = useRef<string[]>([]);
 
   // Check for crawled article from News page
   useEffect(() => {
@@ -42,6 +52,15 @@ export default function DashboardPage() {
         const article = JSON.parse(raw);
         setCrawledArticle(article);
         sessionStorage.removeItem('omni_crawled_article');
+      } catch { /* ignore */ }
+    }
+    const docRaw = sessionStorage.getItem('omni_stored_document');
+    if (docRaw) {
+      try {
+        const doc = JSON.parse(docRaw);
+        setStoredDocument(doc);
+        imageUrlsRef.current = doc.image_urls || [];
+        sessionStorage.removeItem('omni_stored_document');
       } catch { /* ignore */ }
     }
   }, []);
@@ -58,20 +77,45 @@ export default function DashboardPage() {
   });
 
   const handleGenerate = useCallback(
-    async (idea: string, platforms: PlatformType[], tone: string, audience: string, docxFile?: File | null) => {
+    async (idea: string, platforms: PlatformType[], tone: string, audience: string, files?: File[]) => {
       setIsGenerating(true);
       setResults(null);
       setGenError(null);
       setRagUsed(false);
+
+      // Use pre-uploaded image URLs from Storage or upload new ones
+      let imageUrls: string[] = imageUrlsRef.current;
+      if (!imageUrls.length && files && files.length > 0) {
+        // Upload images first (fast)
+        const imageFiles = files.filter((f) => f.type.startsWith('image/'));
+        for (const img of imageFiles) {
+          try {
+            const imgFd = new FormData();
+            imgFd.append('file', img);
+            const imgRes = await fetch('/api/storage/upload-image', { method: 'POST', body: imgFd });
+            const imgData = await imgRes.json();
+            if (imgRes.ok && imgData.url) imageUrls.push(imgData.url);
+          } catch { /* ignore */ }
+        }
+
+        // Process all files through storage API (AI analysis)
+        const storageForm = new FormData();
+        for (const f of files) storageForm.append('files', f);
+        try {
+          const storeRes = await fetch('/api/storage/upload', { method: 'POST', body: storageForm });
+          const storeData = await storeRes.json();
+          if (storeRes.ok && storeData.stored > 0) {
+            const summaries = storeData.documents.map((d: any) => `[${d.file_name}]: ${d.ai_summary || ''}`).join('\n');
+            idea = `${idea}\n\nStored Documents:\n${summaries}`;
+          }
+        } catch { /* non-fatal, continue generation */ }
+      }
 
       const formData = new FormData();
       formData.append('idea', idea);
       formData.append('platforms', JSON.stringify(platforms));
       formData.append('tone', tone);
       formData.append('audience', audience);
-      if (docxFile) {
-        formData.append('docx', docxFile);
-      }
 
       const controller = new AbortController();
       abortRef.current = controller;
@@ -93,7 +137,13 @@ export default function DashboardPage() {
           console.warn('Generation warnings:', data.errors);
         }
 
-        setResults(data.items);
+        // Attach uploaded image URLs to results for Facebook publish
+        const items = (data.items ?? []).map((item: any) => ({
+          ...item,
+          metadata: { ...(item.metadata || {}), image_urls: imageUrls },
+        }));
+
+        setResults(items);
         setRagUsed(data.ragContextUsed ?? false);
       } catch (err) {
         if (err instanceof DOMException && err.name === 'AbortError') return;
@@ -105,6 +155,12 @@ export default function DashboardPage() {
     },
     [],
   );
+
+  const handleRefine = useCallback((updated: GeneratedContent) => {
+    setResults(prev => prev?.map(r =>
+      r.content_type === updated.content_type && r.title === updated.title ? updated : r
+    ) ?? null);
+  }, []);
 
   const [publishMsg, setPublishMsg] = useState<string | null>(null);
 
@@ -119,10 +175,11 @@ export default function DashboardPage() {
       if (!saved) { setPublishMsg('Configure Facebook Page in Settings first.'); return; }
       try {
         const c = JSON.parse(saved);
+        const imageUrls = (item.metadata as any)?.image_urls ?? [];
         setPublishMsg('Publishing to Facebook...');
         const res = await fetch('/api/publish', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ platform: 'facebook', content: item.body, title: item.title, pageAccessToken: c.pageAccessToken, pageId: c.pageId }),
+          body: JSON.stringify({ platform: 'facebook', content: item.body, title: item.title, pageAccessToken: c.pageAccessToken, pageId: c.pageId, imageUrls }),
         });
         const data = await res.json();
         setPublishMsg(data.success ? `Published to Facebook! Post ID: ${data.platformPostId}` : `Failed: ${data.error}`);
@@ -196,7 +253,7 @@ export default function DashboardPage() {
       )}
 
       {/* Input Panel */}
-      <InputPanel onGenerate={handleGenerate} isGenerating={isGenerating} crawledArticle={crawledArticle} />
+      <InputPanel onGenerate={handleGenerate} isGenerating={isGenerating} crawledArticle={crawledArticle} storedDocument={storedDocument} />
 
       {/* Publish feedback */}
       {publishMsg && (
@@ -213,6 +270,7 @@ export default function DashboardPage() {
         isGenerating={isGenerating}
         onView={handleView}
         onPublish={handlePublish}
+        onRefine={handleRefine}
       />
 
       {/* Preview Dialog */}

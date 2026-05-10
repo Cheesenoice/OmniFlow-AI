@@ -293,6 +293,11 @@ export interface Database {
           updated_at?: string;
         };
       };
+      stored_documents: {
+        Row: { id: string; file_name: string; file_type: string; file_size: number | null; original_text: string | null; ai_summary: string | null; ai_json: Record<string, unknown>; embedding: number[] | null; metadata: Record<string, unknown>; created_at: string };
+        Insert: { id?: string; file_name: string; file_type: string; file_size?: number | null; original_text?: string | null; ai_summary?: string | null; ai_json?: Record<string, unknown>; embedding?: number[] | null; metadata?: Record<string, unknown>; created_at?: string };
+        Update: { id?: string; file_name?: string; file_type?: string; file_size?: number | null; original_text?: string | null; ai_summary?: string | null; ai_json?: Record<string, unknown>; embedding?: number[] | null; metadata?: Record<string, unknown>; created_at?: string };
+      };
       connections: {
         Row: {
           id: string;

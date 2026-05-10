@@ -116,6 +116,18 @@ export interface CrawlSource {
   updated_at: string;
 }
 
+export interface StoredDocument {
+  id: string;
+  file_name: string;
+  file_type: string;
+  file_size: number | null;
+  original_text: string | null;
+  ai_summary: string | null;
+  ai_json: Record<string, unknown>;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
 export interface CrawledArticle {
   id: string;
   source_id: string;

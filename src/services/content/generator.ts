@@ -1,6 +1,6 @@
 /**
  * Central Content Generation Engine.
- * Orchestrates: Docx parsing → Embedding → RAG search → Multi-platform generation.
+ * Orchestrates: Docx parsing → Embedding → RAG search → Batch multi-platform generation.
  */
 import { smartGenerate } from "@/lib/ai/smart-generate";
 import { parseDocxFile, chunkText } from "./docx-parser";
@@ -9,7 +9,7 @@ import {
   searchSimilarContent,
   formatContextForPrompt,
 } from "../rag/vector-search";
-import { buildGenerationPrompt } from "./prompts";
+import { buildBatchPrompt, platformToPromptKey } from "./prompts";
 import type { PlatformType, GeneratedContent } from "@/types";
 
 export interface GenerateParams {
@@ -29,7 +29,7 @@ export interface GenerateResult {
 }
 
 /**
- * Main generation pipeline.
+ * Main generation pipeline — batches all platforms in ONE API call.
  */
 export async function generateContent(
   params: GenerateParams,
@@ -82,65 +82,57 @@ export async function generateContent(
       errors.push(
         `RAG search failed: ${err instanceof Error ? err.message : "Unknown error"}`,
       );
-      // Non-fatal — continue without RAG context
     }
   }
 
-  // --- Step 3: Generate content for each platform ---
+  // --- Step 3: Batch-generate all platforms in ONE API call ---
   const items: GeneratedContent[] = [];
 
-  for (const platform of platforms) {
-    try {
-      const { prompt, config } = buildGenerationPrompt({
-        idea: combinedText,
-        platform,
-        tone,
-        audience,
-        contextFromRAG,
-      });
+  try {
+    const { prompt, systemInstruction } = buildBatchPrompt({
+      idea: combinedText,
+      platforms,
+      tone,
+      audience,
+      contextFromRAG,
+    });
 
-      const body = await smartGenerate({
-        prompt,
-        systemInstruction: config.systemPrompt,
-        model: "gemini-3.1-flash-lite",
-        temperature: config.temperature,
-        maxOutputTokens: config.maxTokens,
-      });
+    const raw = await smartGenerate({
+      prompt,
+      systemInstruction,
+      model: "gemini-flash-lite-latest",
+      temperature: 0.7,
+      maxOutputTokens: 8192,
+    });
 
-      const title = extractTitle(body, platform);
+    const jsonStr = raw.replace(/```json\s*|```/g, "").trim();
+    const parsed = JSON.parse(jsonStr);
 
-      items.push({
-        title,
-        body,
-        content_type: config.contentType as GeneratedContent["content_type"],
-        metadata: {
-          platform,
-          tone,
-          audience,
-          rag_used: ragContextUsed,
-          model: "gemini-3.1-flash-lite",
-        },
-      });
-    } catch (err) {
-      errors.push(
-        `Failed to generate ${platform}: ${err instanceof Error ? err.message : "Unknown error"}`,
-      );
+    if (Array.isArray(parsed)) {
+      for (const entry of parsed) {
+        if (!entry || !entry.body) continue;
+        const ct = platformToPromptKey(entry.platform || "");
+        items.push({
+          title: entry.title || "",
+          body: entry.body,
+          content_type: ct as GeneratedContent["content_type"],
+          metadata: {
+            platform: entry.platform,
+            tone,
+            audience,
+            rag_used: ragContextUsed,
+            model: "gemini-flash-lite-latest",
+          },
+        });
+      }
     }
+  } catch (err) {
+    errors.push(
+      `Batch generation failed: ${err instanceof Error ? err.message : "Unknown error"}`,
+    );
   }
 
   return { items, ragContextUsed, docxWordCount, errors };
-}
-
-function extractTitle(body: string, platform: string): string {
-  // Try to get first # heading
-  const h1Match = body.match(/^#\s+(.+)$/m);
-  if (h1Match) return h1Match[1];
-
-  // Try first line
-  const firstLine = body.split("\n")[0];
-  if (firstLine.length <= 120) return firstLine.trim();
-
-  return `${platform} Content`;
 }
 
 export interface AutoPublishArticle {
@@ -169,7 +161,7 @@ Title: ${a.title}
 URL: ${a.url}
 Content: ${a.body.slice(0, 1500)}`,
     )
-    .join('\n\n---\n\n');
+    .join("\n\n---\n\n");
 
   const prompt = `You are a social media manager. Write a Facebook post for EACH of the ${articles.length} articles below.
 
@@ -193,12 +185,14 @@ Requirements per post:
 Articles:
 ${articlesBlock}`;
 
-  console.log(`[OmniFlow Gen] Batch generating ${articles.length} posts in 1 API call...`);
+  console.log(
+    `[OmniFlow Gen] Batch generating ${articles.length} posts in 1 API call...`,
+  );
 
   // Init result array with nulls
   const results: (string | null)[] = new Array(articles.length).fill(null);
 
-  const model = 'gemini-3.1-flash-lite';
+  const model = "gemini-flash-lite-latest";
   try {
     const raw = await smartGenerate({
       prompt,
@@ -207,7 +201,7 @@ ${articlesBlock}`;
       maxOutputTokens: 8192,
     });
 
-    const jsonStr = raw.replace(/```json\s*|```/g, '').trim();
+    const jsonStr = raw.replace(/```json\s*|```/g, "").trim();
     const parsed = JSON.parse(jsonStr);
 
     if (Array.isArray(parsed)) {
@@ -218,14 +212,19 @@ ${articlesBlock}`;
         }
       }
       const filled = results.filter((r) => r !== null).length;
-      console.log(`[OmniFlow Gen] Batch result: ${filled}/${articles.length} posts generated.`);
+      console.log(
+        `[OmniFlow Gen] Batch result: ${filled}/${articles.length} posts generated.`,
+      );
     }
   } catch (err) {
-    console.log(`[OmniFlow Gen] Batch API failed: ${err instanceof Error ? err.message : String(err)}`);
+    console.log(
+      `[OmniFlow Gen] Batch API failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
     // Fallback: use article body as post
     for (let i = 0; i < articles.length; i++) {
       const a = articles[i];
-      results[i] = `${a.title}\n\n${a.body.slice(0, 1500).trim()}\n\nĐọc thêm: ${a.url}`;
+      results[i] =
+        `${a.title}\n\n${a.body.slice(0, 1500).trim()}\n\nĐọc thêm: ${a.url}`;
     }
   }
 
